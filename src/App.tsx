@@ -23,7 +23,7 @@ import {
   EyeOff
 } from 'lucide-react';
 import { competitionService } from './services/competitionService';
-import { isSupabaseConfigured } from './lib/supabaseClient';
+import { supabase, isSupabaseConfigured } from './lib/supabaseClient';
 import { Team, Jury, Evaluation, CompetitionSettings, EvaluationCriteria } from './types';
 import { INITIAL_TEAMS, INITIAL_EVALUATIONS } from './data/teamsData';
 
@@ -89,24 +89,79 @@ export default function App() {
   const [adminLoginForm, setAdminLoginForm] = useState({ email: '', password: '' });
   const [loginError, setLoginError] = useState('');
 
-  // Restore saved session from localStorage on initial load
+  // Restore Supabase Auth JWT session and listen for auth state changes
   useEffect(() => {
-    try {
-      const savedRole = localStorage.getItem('evalpro_role');
-      const savedJury = localStorage.getItem('evalpro_jury');
-      if (savedRole === 'admin') {
-        setCurrentUserRole('admin');
-      } else if (savedRole === 'jury' && savedJury) {
-        setCurrentUserRole('jury');
-        setLoggedJury(JSON.parse(savedJury));
-      } else {
-        setCurrentUserRole('public');
-        setCurrentView('leaderboard');
+    // 1. Check live Supabase JWT session
+    if (isSupabaseConfigured()) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user) {
+          const role = session.user.app_metadata?.role;
+          if (role === 'admin' || ['ravitejaraviteja900@gmail.com', 'admin@evalpro.org'].includes(session.user.email || '')) {
+            setCurrentUserRole('admin');
+          } else if (role === 'jury') {
+            setCurrentUserRole('jury');
+            const matched = juries.find((j) => j.email.toLowerCase().trim() === session.user.email?.toLowerCase().trim()) || {
+              id: session.user.id,
+              name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Jury Panel',
+              email: session.user.email || ''
+            };
+            setLoggedJury(matched);
+          }
+        } else {
+          // Check fallback localStorage if any
+          const savedRole = localStorage.getItem('evalpro_role');
+          const savedJury = localStorage.getItem('evalpro_jury');
+          if (savedRole === 'admin') {
+            setCurrentUserRole('admin');
+          } else if (savedRole === 'jury' && savedJury) {
+            setCurrentUserRole('jury');
+            setLoggedJury(JSON.parse(savedJury));
+          } else {
+            setCurrentUserRole('public');
+            setCurrentView('leaderboard');
+          }
+        }
+      }).catch((e) => {
+        console.warn('Supabase getSession notice:', e);
+      });
+
+      // 2. Auth state change listener
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_OUT' || !session) {
+          setCurrentUserRole('public');
+          setLoggedJury(null);
+          setCurrentView('leaderboard');
+        } else if (session?.user) {
+          const role = session.user.app_metadata?.role;
+          if (role === 'admin' || ['ravitejaraviteja900@gmail.com', 'admin@evalpro.org'].includes(session.user.email || '')) {
+            setCurrentUserRole('admin');
+          } else if (role === 'jury') {
+            setCurrentUserRole('jury');
+          }
+        }
+      });
+
+      return () => {
+        subscription.unsubscribe();
+      };
+    } else {
+      try {
+        const savedRole = localStorage.getItem('evalpro_role');
+        const savedJury = localStorage.getItem('evalpro_jury');
+        if (savedRole === 'admin') {
+          setCurrentUserRole('admin');
+        } else if (savedRole === 'jury' && savedJury) {
+          setCurrentUserRole('jury');
+          setLoggedJury(JSON.parse(savedJury));
+        } else {
+          setCurrentUserRole('public');
+          setCurrentView('leaderboard');
+        }
+      } catch (e) {
+        console.error('Session restore error:', e);
       }
-    } catch (e) {
-      console.error('Session restore error:', e);
     }
-  }, []);
+  }, [juries]);
 
   // Enforce view authorization
   useEffect(() => {
@@ -184,7 +239,7 @@ export default function App() {
     }
   };
 
-  const handleJuryLoginSubmit = (e: React.FormEvent) => {
+  const handleJuryLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
     const enteredEmail = juryLoginForm.email.toLowerCase().trim();
@@ -195,25 +250,59 @@ export default function App() {
       return;
     }
 
-    const matched = juries.find(
-      (j) => j.email.toLowerCase().trim() === enteredEmail && (j.password === enteredPassword || (j as any).password_plain === enteredPassword)
-    );
+    try {
+      setIsLoading(true);
+      // Authenticate via Supabase Auth (issues real JWT)
+      if (isSupabaseConfigured()) {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: enteredEmail,
+          password: enteredPassword
+        });
 
-    if (matched) {
-      setLoggedJury(matched);
-      setCurrentUserRole('jury');
-      setCurrentView('jury-console');
-      setIsJuryLoginOpen(false);
-      setJuryLoginForm({ email: '', password: '' });
-      localStorage.setItem('evalpro_role', 'jury');
-      localStorage.setItem('evalpro_jury', JSON.stringify(matched));
-      showToast(`Logged in as ${matched.name || matched.email}`);
-    } else {
-      setLoginError('Invalid Jury credentials. Contact Super Admin for auto password.');
+        if (!error && data?.user) {
+          const matched = juries.find((j) => j.email.toLowerCase().trim() === enteredEmail) || {
+            id: data.user.id,
+            name: data.user.user_metadata?.name || enteredEmail.split('@')[0],
+            email: enteredEmail
+          };
+
+          setLoggedJury(matched);
+          setCurrentUserRole('jury');
+          setCurrentView('jury-console');
+          setIsJuryLoginOpen(false);
+          setJuryLoginForm({ email: '', password: '' });
+          localStorage.setItem('evalpro_role', 'jury');
+          localStorage.setItem('evalpro_jury', JSON.stringify(matched));
+          showToast(`Logged in as ${matched.name || matched.email}`);
+          return;
+        }
+      }
+
+      // Fallback matching if offline
+      const matched = juries.find(
+        (j) => j.email.toLowerCase().trim() === enteredEmail && (j.password === enteredPassword || (j as any).password_plain === enteredPassword)
+      );
+
+      if (matched) {
+        setLoggedJury(matched);
+        setCurrentUserRole('jury');
+        setCurrentView('jury-console');
+        setIsJuryLoginOpen(false);
+        setJuryLoginForm({ email: '', password: '' });
+        localStorage.setItem('evalpro_role', 'jury');
+        localStorage.setItem('evalpro_jury', JSON.stringify(matched));
+        showToast(`Logged in as ${matched.name || matched.email}`);
+      } else {
+        setLoginError('Invalid Jury credentials. Contact Super Admin for auto password.');
+      }
+    } catch (err: any) {
+      setLoginError(err.message || 'Authentication failed. Please verify credentials.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleAdminLoginSubmit = (e: React.FormEvent) => {
+  const handleAdminLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
     const inputEmail = adminLoginForm.email.trim().toLowerCase();
@@ -224,23 +313,68 @@ export default function App() {
       return;
     }
 
-    const isValidAdmin =
-      (inputEmail === 'ravitejaraviteja900@gmail.com' && inputPassword === 'prompthon_final_dashboard') ||
-      (inputEmail === 'admin@evalpro.org' && inputPassword === 'superadmin123');
+    try {
+      setIsLoading(true);
+      // Authenticate via Supabase Auth (issues real JWT token)
+      if (isSupabaseConfigured()) {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: inputEmail,
+          password: inputPassword
+        });
 
-    if (isValidAdmin) {
-      setCurrentUserRole('admin');
-      setCurrentView('admin-dashboard');
-      setIsAdminLoginOpen(false);
-      setAdminLoginForm({ email: '', password: '' });
-      localStorage.setItem('evalpro_role', 'admin');
-      showToast('Super Admin authorization verified!');
-    } else {
-      setLoginError('Access denied: Invalid Super Admin master credentials.');
+        if (error) {
+          setLoginError(error.message || 'Access denied: Invalid Super Admin master credentials.');
+          return;
+        }
+
+        const role = data.user?.app_metadata?.role;
+        const isAdminEmail = ['ravitejaraviteja900@gmail.com', 'admin@evalpro.org'].includes(inputEmail);
+
+        if (role !== 'admin' && !isAdminEmail) {
+          await supabase.auth.signOut();
+          setLoginError('Access denied: Account does not possess Super Admin master authority.');
+          return;
+        }
+
+        setCurrentUserRole('admin');
+        setCurrentView('admin-dashboard');
+        setIsAdminLoginOpen(false);
+        setAdminLoginForm({ email: '', password: '' });
+        localStorage.setItem('evalpro_role', 'admin');
+        showToast('Super Admin authorization verified via Supabase JWT!');
+        return;
+      }
+
+      // Offline fallback
+      const isValidAdmin =
+        (inputEmail === 'ravitejaraviteja900@gmail.com' && inputPassword === 'prompthon_final_dashboard') ||
+        (inputEmail === 'admin@evalpro.org' && inputPassword === 'superadmin123');
+
+      if (isValidAdmin) {
+        setCurrentUserRole('admin');
+        setCurrentView('admin-dashboard');
+        setIsAdminLoginOpen(false);
+        setAdminLoginForm({ email: '', password: '' });
+        localStorage.setItem('evalpro_role', 'admin');
+        showToast('Super Admin authorization verified!');
+      } else {
+        setLoginError('Access denied: Invalid Super Admin master credentials.');
+      }
+    } catch (err: any) {
+      setLoginError(err.message || 'Authentication error.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      if (isSupabaseConfigured()) {
+        await supabase.auth.signOut();
+      }
+    } catch (e) {
+      console.warn('Sign out notice:', e);
+    }
     setCurrentUserRole('public');
     setLoggedJury(null);
     setCurrentView('leaderboard');

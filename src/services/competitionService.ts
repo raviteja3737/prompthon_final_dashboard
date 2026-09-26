@@ -128,14 +128,29 @@ export const competitionService = {
   },
 
   async createJury(jury: { name: string; email: string; password: string }): Promise<Jury> {
+    const cleanEmail = jury.email.toLowerCase().trim();
     const newJury = {
       id: `jury-${Date.now()}`,
       name: jury.name,
-      email: jury.email.toLowerCase().trim(),
+      email: cleanEmail,
       password: jury.password,
       created_date: new Date().toISOString().split('T')[0]
     };
 
+    // 1. Register in Supabase Auth (generates credentials, auto-confirmed via trigger, app_metadata.role = 'jury')
+    try {
+      await supabase.auth.signUp({
+        email: cleanEmail,
+        password: jury.password,
+        options: {
+          data: { name: jury.name, role: 'jury' }
+        }
+      });
+    } catch (authErr) {
+      console.warn('Supabase Auth user create notice:', authErr);
+    }
+
+    // 2. Insert into public.juries roster table
     const apiRes = await fetchApi('/api/juries', {
       method: 'POST',
       body: JSON.stringify(newJury)
