@@ -86,7 +86,7 @@ export default function App() {
 
   /* Login Form States */
   const [juryLoginForm, setJuryLoginForm] = useState({ email: '', password: '' });
-  const [adminLoginForm, setAdminLoginForm] = useState({ email: 'ravitejaraviteja900@gmail.com', password: 'prompthon_final_dashboard' });
+  const [adminLoginForm, setAdminLoginForm] = useState({ email: '', password: '' });
   const [loginError, setLoginError] = useState('');
 
   // Restore saved session from localStorage on initial load
@@ -99,11 +99,24 @@ export default function App() {
       } else if (savedRole === 'jury' && savedJury) {
         setCurrentUserRole('jury');
         setLoggedJury(JSON.parse(savedJury));
+      } else {
+        setCurrentUserRole('public');
+        setCurrentView('leaderboard');
       }
     } catch (e) {
       console.error('Session restore error:', e);
     }
   }, []);
+
+  // Enforce view authorization
+  useEffect(() => {
+    if (currentView === 'admin-dashboard' && currentUserRole !== 'admin') {
+      setCurrentView('leaderboard');
+    }
+    if (currentView === 'jury-console' && currentUserRole !== 'jury') {
+      setCurrentView('leaderboard');
+    }
+  }, [currentView, currentUserRole]);
 
   // Fetch all data from Supabase / Database API
   const loadSupabaseData = useCallback(async () => {
@@ -175,8 +188,15 @@ export default function App() {
     e.preventDefault();
     setLoginError('');
     const enteredEmail = juryLoginForm.email.toLowerCase().trim();
+    const enteredPassword = juryLoginForm.password.trim();
+
+    if (!enteredEmail || !enteredPassword) {
+      setLoginError('Please enter both your jury email and password.');
+      return;
+    }
+
     const matched = juries.find(
-      (j) => j.email.toLowerCase().trim() === enteredEmail && (j.password === juryLoginForm.password || (j as any).password_plain === juryLoginForm.password)
+      (j) => j.email.toLowerCase().trim() === enteredEmail && (j.password === enteredPassword || (j as any).password_plain === enteredPassword)
     );
 
     if (matched) {
@@ -196,14 +216,27 @@ export default function App() {
   const handleAdminLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
-    if (adminLoginForm.email === 'ravitejaraviteja900@gmail.com' && adminLoginForm.password === 'prompthon_final_dashboard') {
+    const inputEmail = adminLoginForm.email.trim().toLowerCase();
+    const inputPassword = adminLoginForm.password.trim();
+
+    if (!inputEmail || !inputPassword) {
+      setLoginError('Please enter both Super Admin email and master password.');
+      return;
+    }
+
+    const isValidAdmin =
+      (inputEmail === 'ravitejaraviteja900@gmail.com' && inputPassword === 'prompthon_final_dashboard') ||
+      (inputEmail === 'admin@evalpro.org' && inputPassword === 'superadmin123');
+
+    if (isValidAdmin) {
       setCurrentUserRole('admin');
       setCurrentView('admin-dashboard');
       setIsAdminLoginOpen(false);
+      setAdminLoginForm({ email: '', password: '' });
       localStorage.setItem('evalpro_role', 'admin');
       showToast('Super Admin authorization verified!');
     } else {
-      setLoginError('Access denied: Invalid Super Admin master password.');
+      setLoginError('Access denied: Invalid Super Admin master credentials.');
     }
   };
 
@@ -1519,16 +1552,27 @@ export default function App() {
           </div>
 
           <div>
-            <button
-              onClick={() => {
-                setLoginError('');
-                setIsAdminLoginOpen(true);
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-[#FFE600] hover:bg-yellow-300 text-black font-black text-xs uppercase tracking-wider border-[2.5px] border-black shadow-[3px_3px_0px_0px_#000] active:shadow-none transition-all"
-            >
-              <Shield className="w-4 h-4 stroke-[2.5]" />
-              <span>Super Admin Login</span>
-            </button>
+            {currentUserRole === 'admin' ? (
+              <button
+                onClick={() => setCurrentView('admin-dashboard')}
+                className="flex items-center gap-2 px-4 py-2 bg-[#FF66C4] hover:bg-pink-300 text-black font-black text-xs uppercase tracking-wider border-[2.5px] border-black shadow-[3px_3px_0px_0px_#000] active:shadow-none transition-all"
+              >
+                <Shield className="w-4 h-4 stroke-[2.5]" />
+                <span>Go to Admin Dashboard</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  setLoginError('');
+                  setAdminLoginForm({ email: '', password: '' });
+                  setIsAdminLoginOpen(true);
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-[#FFE600] hover:bg-yellow-300 text-black font-black text-xs uppercase tracking-wider border-[2.5px] border-black shadow-[3px_3px_0px_0px_#000] active:shadow-none transition-all"
+              >
+                <Shield className="w-4 h-4 stroke-[2.5]" />
+                <span>Super Admin Login</span>
+              </button>
+            )}
           </div>
         </div>
       </footer>
@@ -1544,10 +1588,17 @@ export default function App() {
                 </div>
                 <div>
                   <h3 className="font-black text-lg uppercase tracking-tight">Jury Login</h3>
-                  <p className="text-[10px] font-bold text-gray-600">Enter your auto-generated credentials</p>
+                  <p className="text-[10px] font-bold text-gray-600">Enter your credentials provided by Super Admin</p>
                 </div>
               </div>
-              <button onClick={() => setIsJuryLoginOpen(false)} className="p-1 hover:bg-gray-100">
+              <button
+                onClick={() => {
+                  setIsJuryLoginOpen(false);
+                  setJuryLoginForm({ email: '', password: '' });
+                  setLoginError('');
+                }}
+                className="p-1 hover:bg-gray-100"
+              >
                 <X className="w-5 h-5 stroke-[2.5]" />
               </button>
             </div>
@@ -1564,7 +1615,8 @@ export default function App() {
                 <input
                   type="email"
                   required
-                  placeholder="jury1@evalpro.org"
+                  autoComplete="off"
+                  placeholder="e.g. jury1@evalpro.org"
                   value={juryLoginForm.email}
                   onChange={(e) => setJuryLoginForm({ ...juryLoginForm, email: e.target.value })}
                   className="w-full bg-[#FFFDF0] border-[2px] border-black px-3 py-2 text-xs font-bold font-mono focus:bg-white focus:outline-none shadow-[2px_2px_0px_0px_#000]"
@@ -1572,11 +1624,12 @@ export default function App() {
               </div>
 
               <div>
-                <label className="block text-xs font-black uppercase mb-1">Auto-Generated Password</label>
+                <label className="block text-xs font-black uppercase mb-1">Password</label>
                 <input
                   type="password"
                   required
-                  placeholder="Password provided by Super Admin"
+                  autoComplete="off"
+                  placeholder="Enter auto-generated jury password"
                   value={juryLoginForm.password}
                   onChange={(e) => setJuryLoginForm({ ...juryLoginForm, password: e.target.value })}
                   className="w-full bg-[#FFFDF0] border-[2px] border-black px-3 py-2 text-xs font-bold font-mono focus:bg-white focus:outline-none shadow-[2px_2px_0px_0px_#000]"
@@ -1585,30 +1638,6 @@ export default function App() {
                   * Passwords cannot be altered by jury members once generated.
                 </p>
               </div>
-
-              {/* Demo Fill Shortcuts if juries exist */}
-              {juries.length > 0 && (
-                <div className="p-3 bg-yellow-50 border-[2px] border-black text-xs">
-                  <span className="font-black uppercase block mb-1">Test Quick-Fill:</span>
-                  <div className="flex gap-2 flex-wrap">
-                    {juries.slice(0, 3).map((j, i) => (
-                      <button
-                        key={j.id}
-                        type="button"
-                        onClick={() =>
-                          setJuryLoginForm({
-                            email: j.email,
-                            password: j.password || (j as any).password_plain || ''
-                          })
-                        }
-                        className="px-2 py-1 bg-white border border-black font-mono text-[10px] hover:bg-gray-100"
-                      >
-                        Jury {i + 1} Demo
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               <button
                 type="submit"
@@ -1635,7 +1664,14 @@ export default function App() {
                   <p className="text-[10px] font-bold text-gray-600">Full system override authority</p>
                 </div>
               </div>
-              <button onClick={() => setIsAdminLoginOpen(false)} className="p-1 hover:bg-gray-100">
+              <button
+                onClick={() => {
+                  setIsAdminLoginOpen(false);
+                  setAdminLoginForm({ email: '', password: '' });
+                  setLoginError('');
+                }}
+                className="p-1 hover:bg-gray-100"
+              >
                 <X className="w-5 h-5 stroke-[2.5]" />
               </button>
             </div>
@@ -1652,6 +1688,8 @@ export default function App() {
                 <input
                   type="email"
                   required
+                  autoComplete="off"
+                  placeholder="Enter administrator email"
                   value={adminLoginForm.email}
                   onChange={(e) => setAdminLoginForm({ ...adminLoginForm, email: e.target.value })}
                   className="w-full bg-[#FFFDF0] border-[2px] border-black px-3 py-2 text-xs font-bold font-mono focus:bg-white focus:outline-none shadow-[2px_2px_0px_0px_#000]"
@@ -1663,14 +1701,16 @@ export default function App() {
                 <input
                   type="password"
                   required
+                  autoComplete="off"
+                  placeholder="Enter master admin password"
                   value={adminLoginForm.password}
                   onChange={(e) => setAdminLoginForm({ ...adminLoginForm, password: e.target.value })}
                   className="w-full bg-[#FFFDF0] border-[2px] border-black px-3 py-2 text-xs font-bold font-mono focus:bg-white focus:outline-none shadow-[2px_2px_0px_0px_#000]"
                 />
               </div>
 
-              <div className="p-3 bg-gray-100 border-[2px] border-black text-xs font-mono">
-                Master Credentials: <strong className="text-black">admin@evalpro.org</strong> / <strong className="text-black">superadmin123</strong>
+              <div className="p-2.5 bg-yellow-50 border-[2px] border-black text-xs font-bold text-gray-700">
+                🔒 Restricted Portal: Requires authorized Super Admin master credentials.
               </div>
 
               <button

@@ -2,6 +2,9 @@ import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { Team, Jury, Evaluation, EvaluationCriteria } from '../types';
 
 async function fetchApi(endpoint: string, options: RequestInit = {}): Promise<any> {
+  // Only attempt local /api endpoints when running Vite dev server locally
+  if (!import.meta.env.DEV) return null;
+
   try {
     const res = await fetch(endpoint, {
       ...options,
@@ -10,7 +13,8 @@ async function fetchApi(endpoint: string, options: RequestInit = {}): Promise<an
         ...(options.headers || {})
       }
     });
-    if (res.ok) {
+    const contentType = res.headers.get('content-type');
+    if (res.ok && contentType && contentType.includes('application/json')) {
       return await res.json();
     }
   } catch (e) {
