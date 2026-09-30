@@ -188,7 +188,7 @@ function LoginPage({ onLogin }: { onLogin: () => void }) {
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--black)', padding: '1rem' }}>
       <div style={{ width: '100%', maxWidth: '400px' }}>
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{ fontSize: '2.5rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
+          <div style={{ fontSize: '2.5rem', fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--white)' }}>
             EVAL<span style={{ color: 'var(--yellow)' }}>PRO</span>
           </div>
           <p style={{ color: 'var(--gray-600)', marginTop: '0.5rem' }}>Multi-Event Scoring Platform</p>
@@ -756,12 +756,10 @@ function OrganizerWorkspace({ eventId, slug }: { eventId: string; slug: string }
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ padding: '0 2rem', borderBottom: 'var(--border)', background: 'var(--gray-100)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 0' }}>
-          <div>
-            <h2 style={{ marginBottom: '0.2rem' }}>{event.name}</h2>
-            <StatusBadge status={event.status} />
-          </div>
+      <div style={{ padding: '0 2rem', borderBottom: '3px solid var(--black)', background: 'var(--white)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1.5rem 0 1rem 0' }}>
+          <h2 style={{ fontSize: '2rem', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{event.name}</h2>
+          <StatusBadge status={event.status} />
         </div>
         <div className="tabs">
           {([
@@ -829,18 +827,16 @@ function TeamsTab({ eventId }: { eventId: string }) {
 
   return (
     <div>
-      <div className="section-header">
-        <h2 className="section-title">Teams & Participants</h2>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button className="btn btn-ghost" onClick={() => setShowCSV(true)}><Upload size={14} />CSV Import</button>
-          <button className="btn btn-primary" onClick={() => setShowAdd(true)}><Plus size={14} />Add Team</button>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+        <div className="search-box" style={{ flex: 1, minWidth: '300px' }}>
+          <Search size={16} className="search-icon" />
+          <input className="input" placeholder="Search teams or members (typo-tolerant)..."
+            value={search} onChange={e => handleSearch(e.target.value)} />
         </div>
-      </div>
-
-      <div className="search-box" style={{ marginBottom: '1rem' }}>
-        <Search size={14} className="search-icon" />
-        <input className="input" placeholder="Search teams or members (typo-tolerant)..."
-          value={search} onChange={e => handleSearch(e.target.value)} style={{ paddingLeft: '2.25rem' }} />
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button className="btn btn-ghost" onClick={() => setShowCSV(true)} style={{ border: '2px solid var(--black)', boxShadow: 'var(--shadow-sm)' }}><Upload size={14} />CSV Import</button>
+          <button className="btn btn-primary" onClick={() => setShowAdd(true)} style={{ border: '2px solid var(--black)', boxShadow: 'var(--shadow-sm)' }}><Plus size={14} />Add Team</button>
+        </div>
       </div>
 
       {loading ? <div className="loading-center"><Spinner /></div> : (
