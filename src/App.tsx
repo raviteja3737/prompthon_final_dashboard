@@ -9,7 +9,7 @@ import {
   Lock, Unlock, Globe, Share2, Download, ChevronDown,
   ChevronUp, AlertTriangle, Activity, Award, Layers,
   FileText, List, Star, Zap, Database, KeyRound, Check,
-  Loader2, Link2, ExternalLink
+  Loader2, Link2, ExternalLink, Key
 } from 'lucide-react';
 import Papa from 'papaparse';
 import { supabase, callEdgeFunction } from './lib/supabaseClient';
