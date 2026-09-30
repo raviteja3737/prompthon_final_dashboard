@@ -559,68 +559,89 @@ function EventDeepView({ event, onClose, onRefresh }: {
               {tab === 'teams' && (
                 <div>
                   <p style={{ marginBottom: '1rem', color: 'var(--gray-600)' }}>{teams.length} teams registered</p>
-                  <div className="table-wrap">
-                    <table>
-                      <thead><tr><th>Team Name</th><th>Track</th><th>Members</th></tr></thead>
-                      <tbody>
-                        {teams.map(t => (
-                          <tr key={t.id}>
-                            <td style={{ fontWeight: 700 }}>{t.name}</td>
-                            <td><span className="badge badge-cyan">{t.tag || '—'}</span></td>
-                            <td style={{ color: 'var(--gray-700)' }}>{t.members || '—'}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  {teams.length === 0 ? (
+                    <div className="card" style={{ textAlign: 'center', padding: '4rem 2rem', background: 'var(--white)' }}>
+                      <h3 style={{ marginBottom: '0.5rem' }}>No teams registered</h3>
+                      <p style={{ color: 'var(--gray-600)' }}>This event doesn't have any teams yet.</p>
+                    </div>
+                  ) : (
+                    <div className="table-wrap">
+                      <table>
+                        <thead><tr><th>Team Name</th><th>Track</th><th>Members</th></tr></thead>
+                        <tbody>
+                          {teams.map(t => (
+                            <tr key={t.id}>
+                              <td style={{ fontWeight: 700 }}>{t.name}</td>
+                              <td><span className="badge badge-cyan">{t.tag || '—'}</span></td>
+                              <td style={{ color: 'var(--gray-700)' }}>{t.members || '—'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* JURIES */}
               {tab === 'juries' && (
-                <div className="table-wrap">
-                  <table>
-                    <thead><tr><th>Name</th><th>Email</th><th>Progress</th></tr></thead>
-                    <tbody>
-                      {juries.map(j => (
-                        <tr key={j.user_id}>
-                          <td style={{ fontWeight: 700 }}>{j.display_name}</td>
-                          <td style={{ color: 'var(--gray-700)' }}>{j.email}</td>
-                          <td>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              <div className="progress-bar" style={{ width: '100px' }}>
-                                <div className="progress-fill" style={{ width: `${j.total_teams ? Math.min(100, ((j.submission_count || 0) / j.total_teams) * 100) : 0}%` }} />
-                              </div>
-                              <span style={{ fontFamily: 'var(--mono)', fontSize: '0.8rem' }}>{j.submission_count}/{j.total_teams}</span>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div>
+                  {juries.length === 0 ? (
+                    <div className="card" style={{ textAlign: 'center', padding: '4rem 2rem', background: 'var(--white)' }}>
+                      <h3 style={{ marginBottom: '0.5rem' }}>No jury panels yet</h3>
+                    </div>
+                  ) : (
+                    <div className="table-wrap">
+                      <table>
+                        <thead><tr><th>Name</th><th>Email</th><th>Progress</th></tr></thead>
+                        <tbody>
+                          {juries.map(j => (
+                            <tr key={j.user_id}>
+                              <td style={{ fontWeight: 700 }}>{j.display_name}</td>
+                              <td style={{ color: 'var(--gray-700)' }}>{j.email}</td>
+                              <td>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  <div className="progress-bar" style={{ width: '100px' }}>
+                                    <div className="progress-fill" style={{ width: `${j.total_teams ? Math.min(100, ((j.submission_count || 0) / j.total_teams) * 100) : 0}%` }} />
+                                  </div>
+                                  <span style={{ fontFamily: 'var(--mono)', fontSize: '0.8rem' }}>{j.submission_count}/{j.total_teams}</span>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* ROUNDS */}
               {tab === 'rounds' && (
                 <div>
-                  {rounds.map(r => (
-                    <div key={r.id} className="round-card" style={{ marginBottom: '1rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                        <h4>Round {r.seq}: {r.name}</h4>
-                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                          <StatusBadge status={r.status} />
-                          <span className="badge badge-gray">Weight: {r.weight}</span>
-                          <span className="badge badge-yellow">Max: {r.max_marks_total}</span>
+                  {rounds.length === 0 ? (
+                    <div className="card" style={{ textAlign: 'center', padding: '4rem 2rem', background: 'var(--white)' }}>
+                      <h3 style={{ marginBottom: '0.5rem' }}>No rounds created</h3>
+                    </div>
+                  ) : (
+                    rounds.map(r => (
+                      <div key={r.id} className="round-card" style={{ marginBottom: '1rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                          <h4>Round {r.seq}: {r.name}</h4>
+                          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                            <StatusBadge status={r.status} />
+                            <span className="badge badge-gray">Weight: {r.weight}</span>
+                            <span className="badge badge-yellow">Max: {r.max_marks_total}</span>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                          {(r.criteria || []).map(c => (
+                            <span key={c.id} className="badge badge-purple">{c.label} ({c.max_marks})</span>
+                          ))}
                         </div>
                       </div>
-                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                        {(r.criteria || []).map(c => (
-                          <span key={c.id} className="badge badge-purple">{c.label} ({c.max_marks})</span>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               )}
 
@@ -633,43 +654,58 @@ function EventDeepView({ event, onClose, onRefresh }: {
 
               {/* LEADERBOARD */}
               {tab === 'leaderboard' && (
-                <div className="table-wrap">
-                  <table>
-                    <thead><tr><th>Rank</th><th>Team</th></tr></thead>
-                    <tbody>
-                      {leaderboard.map(r => (
-                        <tr key={r.team_id}>
-                          <td>
-                            <div className={`rank-pill ${r.rank === 1 ? 'rank-1' : r.rank === 2 ? 'rank-2' : r.rank === 3 ? 'rank-3' : ''}`}>
-                              {r.rank ?? '—'}
-                            </div>
-                          </td>
-                          <td style={{ fontWeight: 700 }}>{r.team_name}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div>
+                  {leaderboard.length === 0 ? (
+                    <div className="card" style={{ textAlign: 'center', padding: '4rem 2rem', background: 'var(--white)' }}>
+                      <h3 style={{ marginBottom: '0.5rem' }}>No leaderboard data yet</h3>
+                    </div>
+                  ) : (
+                    <div className="table-wrap">
+                      <table>
+                        <thead><tr><th>Rank</th><th>Team</th></tr></thead>
+                        <tbody>
+                          {leaderboard.map(r => (
+                            <tr key={r.team_id}>
+                              <td>
+                                <div className={`rank-pill ${r.rank === 1 ? 'rank-1' : r.rank === 2 ? 'rank-2' : r.rank === 3 ? 'rank-3' : ''}`}>
+                                  {r.rank ?? '—'}
+                                </div>
+                              </td>
+                              <td style={{ fontWeight: 700 }}>{r.team_name}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* AUDIT */}
               {tab === 'audit' && (
-                <div className="table-wrap">
-                  <table>
-                    <thead><tr><th>Time</th><th>Action</th><th>Entity</th></tr></thead>
-                    <tbody>
-                      {auditLog.map(al => (
-                        <tr key={al.id}>
-                          <td style={{ fontFamily: 'var(--mono)', fontSize: '0.78rem', color: 'var(--gray-600)' }}>
-                            {new Date(al.at).toLocaleString()}
-                          </td>
-                          <td><span className="badge badge-orange">{al.action}</span></td>
-                          <td style={{ color: 'var(--gray-700)' }}>{al.entity}</td>
-                        </tr>
-                      ))}
-                      {auditLog.length === 0 && <tr><td colSpan={3} style={{ textAlign: 'center', color: 'var(--gray-600)', padding: '2rem' }}>No audit entries yet</td></tr>}
-                    </tbody>
-                  </table>
+                <div>
+                  {auditLog.length === 0 ? (
+                    <div className="card" style={{ textAlign: 'center', padding: '4rem 2rem', background: 'var(--white)' }}>
+                      <h3 style={{ marginBottom: '0.5rem' }}>No audit entries yet</h3>
+                    </div>
+                  ) : (
+                    <div className="table-wrap">
+                      <table>
+                        <thead><tr><th>Time</th><th>Action</th><th>Entity</th></tr></thead>
+                        <tbody>
+                          {auditLog.map(al => (
+                            <tr key={al.id}>
+                              <td style={{ fontFamily: 'var(--mono)', fontSize: '0.78rem', color: 'var(--gray-600)' }}>
+                                {new Date(al.at).toLocaleString()}
+                              </td>
+                              <td><span className="badge badge-orange">{al.action}</span></td>
+                              <td style={{ color: 'var(--gray-700)' }}>{al.entity}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               )}
             </>
@@ -839,7 +875,16 @@ function TeamsTab({ eventId }: { eventId: string }) {
         </div>
       </div>
 
-      {loading ? <div className="loading-center"><Spinner /></div> : (
+      {loading ? <div className="loading-center"><Spinner /></div> : teams.length === 0 ? (
+        <div className="card" style={{ textAlign: 'center', padding: '4rem 2rem', background: 'var(--white)' }}>
+          <h3 style={{ marginBottom: '0.5rem' }}>No teams found</h3>
+          <p style={{ color: 'var(--gray-600)', marginBottom: '1.5rem' }}>Get started by adding your first team or importing a CSV.</p>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem' }}>
+            <button className="btn btn-ghost" onClick={() => setShowCSV(true)} style={{ border: '2px solid var(--black)', boxShadow: 'var(--shadow-sm)' }}><Upload size={14} />CSV Import</button>
+            <button className="btn btn-primary" onClick={() => setShowAdd(true)} style={{ border: '2px solid var(--black)', boxShadow: 'var(--shadow-sm)' }}><Plus size={14} />Add Team</button>
+          </div>
+        </div>
+      ) : (
         <div className="table-wrap">
           <table>
             <thead><tr><th>Team Name</th><th>Track</th><th>Members</th><th>Actions</th></tr></thead>
@@ -854,9 +899,6 @@ function TeamsTab({ eventId }: { eventId: string }) {
                   </td>
                 </tr>
               ))}
-              {teams.length === 0 && (
-                <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--gray-600)', padding: '2rem' }}>No teams yet</td></tr>
-              )}
             </tbody>
           </table>
         </div>
@@ -1092,9 +1134,8 @@ function RoundsTab({ eventId }: { eventId: string }) {
 
   return (
     <div>
-      <div className="section-header">
-        <h2 className="section-title">Rounds & Criteria</h2>
-        <button className="btn btn-primary" onClick={() => setAddingRound(true)}><Plus size={14} />Add Round</button>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: '1.5rem' }}>
+        <button className="btn btn-primary" onClick={() => setAddingRound(true)} style={{ border: '2px solid var(--black)', boxShadow: 'var(--shadow-sm)' }}><Plus size={14} />Add Round</button>
       </div>
 
       {loading ? <div className="loading-center"><Spinner /></div> : (
@@ -1138,8 +1179,15 @@ function RoundsTab({ eventId }: { eventId: string }) {
             </div>
           ))}
 
-          {rounds.length === 0 && (
-            <div className="empty-state"><Layers size={40} /><h3>No Rounds</h3><p>Add rounds and define scoring criteria for each.</p></div>
+          {rounds.length === 0 && !addingRound && (
+            <div className="card" style={{ textAlign: 'center', padding: '4rem 2rem', background: 'var(--white)' }}>
+              <Layers size={32} style={{ marginBottom: '1rem', color: 'var(--gray-600)' }} />
+              <h3 style={{ marginBottom: '0.5rem' }}>No rounds created</h3>
+              <p style={{ color: 'var(--gray-600)', marginBottom: '1.5rem' }}>Add rounds and define scoring criteria for each.</p>
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <button className="btn btn-primary" onClick={() => setAddingRound(true)} style={{ border: '2px solid var(--black)', boxShadow: 'var(--shadow-sm)' }}><Plus size={14} />Add Round</button>
+              </div>
+            </div>
           )}
 
           {addingRound && (
@@ -1266,12 +1314,19 @@ function JuriesTab({ eventId }: { eventId: string }) {
 
   return (
     <div>
-      <div className="section-header">
-        <h2 className="section-title">Jury Panels</h2>
-        <button className="btn btn-primary" onClick={() => setShowAdd(true)}><UserPlus size={14} />Add Jury</button>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: '1.5rem' }}>
+        <button className="btn btn-primary" onClick={() => setShowAdd(true)} style={{ border: '2px solid var(--black)', boxShadow: 'var(--shadow-sm)' }}><UserPlus size={14} />Add Jury</button>
       </div>
 
-      {loading ? <div className="loading-center"><Spinner /></div> : (
+      {loading ? <div className="loading-center"><Spinner /></div> : juries.length === 0 ? (
+        <div className="card" style={{ textAlign: 'center', padding: '4rem 2rem', background: 'var(--white)' }}>
+          <h3 style={{ marginBottom: '0.5rem' }}>No jury panels yet</h3>
+          <p style={{ color: 'var(--gray-600)', marginBottom: '1.5rem' }}>Add jury members to allow them to evaluate teams.</p>
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <button className="btn btn-primary" onClick={() => setShowAdd(true)} style={{ border: '2px solid var(--black)', boxShadow: 'var(--shadow-sm)' }}><UserPlus size={14} />Add Jury</button>
+          </div>
+        </div>
+      ) : (
         <div className="table-wrap">
           <table>
             <thead>
@@ -1301,9 +1356,6 @@ function JuriesTab({ eventId }: { eventId: string }) {
                   </td>
                 </tr>
               ))}
-              {juries.length === 0 && (
-                <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--gray-600)', padding: '2rem' }}>No jury panels yet</td></tr>
-              )}
             </tbody>
           </table>
         </div>
@@ -1408,16 +1460,20 @@ function MarksTab({ eventId }: { eventId: string }) {
 
   return (
     <div>
-      <div className="section-header">
-        <h2 className="section-title">Evaluations</h2>
-        <button className="btn btn-ghost btn-sm" onClick={load}><RefreshCw size={14} />Refresh</button>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <select className="input" style={{ width: 'auto', minWidth: '200px' }} value={roundFilter} onChange={e => setRoundFilter(e.target.value)}>
+          <option value="">All Rounds</option>
+          {rounds.map(r => <option key={r.id} value={r.id}>Round {r.seq}: {r.name}</option>)}
+        </select>
+        <button className="btn btn-ghost" onClick={load} style={{ border: '2px solid var(--black)', boxShadow: 'var(--shadow-sm)' }}><RefreshCw size={14} />Refresh</button>
       </div>
-      <select className="input" style={{ width: 'auto', marginBottom: '1rem' }} value={roundFilter} onChange={e => setRoundFilter(e.target.value)}>
-        <option value="">All Rounds</option>
-        {rounds.map(r => <option key={r.id} value={r.id}>Round {r.seq}: {r.name}</option>)}
-      </select>
 
-      {loading ? <div className="loading-center"><Spinner /></div> : (
+      {loading ? <div className="loading-center"><Spinner /></div> : filtered.length === 0 ? (
+        <div className="card" style={{ textAlign: 'center', padding: '4rem 2rem', background: 'var(--white)' }}>
+          <h3 style={{ marginBottom: '0.5rem' }}>No evaluations yet</h3>
+          <p style={{ color: 'var(--gray-600)' }}>When juries submit their scores, they will appear here.</p>
+        </div>
+      ) : (
         <div className="table-wrap">
           <table>
             <thead><tr><th>Team</th><th>Jury</th><th>Round</th><th>Total</th><th>Remarks</th><th>Actions</th></tr></thead>
@@ -1434,9 +1490,6 @@ function MarksTab({ eventId }: { eventId: string }) {
                   </td>
                 </tr>
               ))}
-              {filtered.length === 0 && (
-                <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--gray-600)', padding: '2rem' }}>No evaluations yet</td></tr>
-              )}
             </tbody>
           </table>
         </div>
@@ -1481,7 +1534,6 @@ function ShareTab({ event, onEventChange }: { event: Event; onEventChange: (e: E
 
   return (
     <div>
-      <h2 className="section-title" style={{ marginBottom: '1.5rem' }}>Share & Public Leaderboard</h2>
       <div className="card" style={{ boxShadow: event.leaderboard_enabled ? 'var(--shadow-green)' : undefined }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
           <div>
@@ -1541,7 +1593,6 @@ function ExportTab({ event, eventId }: { event: Event; eventId: string }) {
 
   return (
     <div>
-      <h2 className="section-title" style={{ marginBottom: '1.5rem' }}>Export Event Data</h2>
       <div className="card" style={{ maxWidth: '500px' }}>
         <h3 style={{ marginBottom: '0.5rem' }}>CSV Export Bundle</h3>
         <p style={{ marginBottom: '1.5rem' }}>Downloads a ZIP containing: teams, participants, juries, rounds, criteria, all evaluations, and leaderboard. No passwords or hashes included.</p>

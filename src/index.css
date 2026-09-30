@@ -107,6 +107,7 @@ p  { color: var(--gray-800); line-height: 1.6; font-weight: 500; }
   background: var(--white); border: var(--border);
   padding: 1.5rem; position: relative;
   box-shadow: var(--shadow);
+  margin-right: 4px; margin-bottom: 4px;
 }
 .card:hover { transform: translate(-2px, -2px); box-shadow: var(--shadow-hover); }
 .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
@@ -126,6 +127,7 @@ p  { color: var(--gray-800); line-height: 1.6; font-weight: 500; }
   padding: 1.5rem; position: relative; overflow: hidden;
   transition: transform 0.1s, box-shadow 0.1s;
   display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+  margin-right: 4px; margin-bottom: 4px;
 }
 .stat-card:hover { transform: translate(-2px, -2px); box-shadow: var(--shadow-hover); }
 .stat-card .stat-value { font-size: 3rem; font-weight: 800; line-height: 1; font-family: var(--mono); color: var(--black); margin-bottom: 0.25rem; }
@@ -140,7 +142,7 @@ p  { color: var(--gray-800); line-height: 1.6; font-weight: 500; }
 .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; }
 
 /* Table */
-.table-wrap { overflow-x: auto; border: 2px solid var(--black); background: var(--white); box-shadow: var(--shadow); }
+.table-wrap { overflow-x: auto; border: 2px solid var(--black); background: var(--white); box-shadow: var(--shadow); margin-right: 4px; margin-bottom: 4px; }
 table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
 thead tr { background: var(--gray-200); color: var(--black); border-bottom: 3px solid var(--black); }
 th { padding: 1rem 1.25rem; text-align: left; font-weight: 800; font-size: 0.85rem;
