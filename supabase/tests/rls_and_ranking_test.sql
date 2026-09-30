@@ -81,10 +81,14 @@ DECLARE
   v_crit2a    UUID := gen_random_uuid();
   v_team1     UUID := gen_random_uuid();
   v_team2     UUID := gen_random_uuid();
-  v_jury1     UUID := '00000000-0000-0000-0000-000000000001'::UUID;
-  v_jury2     UUID := '00000000-0000-0000-0000-000000000002'::UUID;
+  v_jury1     UUID;
+  v_jury2     UUID;
   r1          INTEGER; r2 INTEGER;
 BEGIN
+  SELECT id INTO v_jury1 FROM auth.users ORDER BY created_at ASC LIMIT 1;
+  SELECT id INTO v_jury2 FROM auth.users ORDER BY created_at DESC LIMIT 1;
+  IF v_jury2 IS NULL THEN v_jury2 := v_jury1; END IF;
+
   -- Insert test event
   INSERT INTO public.events (id, name, slug, organizer_email)
   VALUES (v_event_id, 'Test Event', 'test-rls-' || substr(v_event_id::text,1,8), 'test@test.com');
@@ -164,6 +168,9 @@ BEGIN
   DELETE FROM public.events WHERE id = v_event_id;
 END $$;
 
-RAISE NOTICE '=========================================';
-RAISE NOTICE 'ALL PHASE 1 TESTS PASSED';
-RAISE NOTICE '=========================================';
+DO $$
+BEGIN
+  RAISE NOTICE '=========================================';
+  RAISE NOTICE 'ALL PHASE 1 TESTS PASSED';
+  RAISE NOTICE '=========================================';
+END $$;

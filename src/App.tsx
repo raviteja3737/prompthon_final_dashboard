@@ -781,7 +781,7 @@ function AdminMarksView({ event, evaluations, rounds, userId, onRefresh }: {
 // ORGANIZER WORKSPACE
 // ─────────────────────────────────────────────────────────────────────────────
 function OrganizerWorkspace({ eventId, slug }: { eventId: string; slug: string }) {
-  const [tab, setTab] = useState<'teams' | 'rounds' | 'juries' | 'marks' | 'share' | 'export'>('teams');
+  const [tab, setTab] = useState<'teams' | 'rounds' | 'juries' | 'marks' | 'leaderboard' | 'share' | 'export'>('teams');
   const [event, setEvent] = useState<Event | null>(null);
 
   useEffect(() => {
@@ -824,12 +824,13 @@ function OrganizerWorkspace({ eventId, slug }: { eventId: string; slug: string }
 
         <div className="tabs">
           {([
-            ['teams',  'Teams & Participants', Users],
-            ['rounds', 'Rounds & Criteria', Layers],
-            ['juries', 'Juries', Shield],
-            ['marks',  'Marks', BarChart2],
-            ['share',  'Share', Share2],
-            ['export', 'Export', Download],
+            ['teams',       'Teams & Participants', Users],
+            ['rounds',      'Rounds & Criteria', Layers],
+            ['juries',      'Juries', Shield],
+            ['marks',       'Marks', BarChart2],
+            ['leaderboard', 'Leaderboard', Trophy],
+            ['share',       'Share', Share2],
+            ['export',      'Export', Download],
           ] as const).map(([key, label, TabIcon]) => (
             <button key={key} className={`tab-btn ${tab === key ? 'active' : ''}`} onClick={() => setTab(key)}>
               <TabIcon size={15} />
@@ -840,12 +841,13 @@ function OrganizerWorkspace({ eventId, slug }: { eventId: string; slug: string }
       </div>
 
       <div className="page">
-        {tab === 'teams'  && <TeamsTab eventId={eventId} />}
-        {tab === 'rounds' && <RoundsTab eventId={eventId} />}
-        {tab === 'juries' && <JuriesTab eventId={eventId} />}
-        {tab === 'marks'  && <MarksTab eventId={eventId} />}
-        {tab === 'share'  && <ShareTab event={event} onEventChange={setEvent} />}
-        {tab === 'export' && <ExportTab event={event} eventId={eventId} />}
+        {tab === 'teams'       && <TeamsTab eventId={eventId} />}
+        {tab === 'rounds'      && <RoundsTab eventId={eventId} />}
+        {tab === 'juries'      && <JuriesTab eventId={eventId} />}
+        {tab === 'marks'       && <MarksTab eventId={eventId} />}
+        {tab === 'leaderboard' && <LeaderboardTab eventId={eventId} event={event} />}
+        {tab === 'share'       && <ShareTab event={event} onEventChange={setEvent} />}
+        {tab === 'export'      && <ExportTab event={event} eventId={eventId} />}
       </div>
     </div>
   );
@@ -1619,6 +1621,112 @@ function MarksTab({ eventId }: { eventId: string }) {
   );
 }
 
+// ── LEADERBOARD TAB ──
+function LeaderboardTab({ eventId, event }: { eventId: string; event: Event }) {
+  const { showToast } = useApp();
+  const [ranks, setRanks] = useState<LeaderboardRank[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const data = await leaderboardService.getLeaderboard(eventId);
+      setRanks(data);
+    } catch (e: unknown) {
+      showToast((e as Error).message, 'error');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [eventId, showToast]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const handleManualRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await leaderboardService.refreshLeaderboard(eventId);
+      await load();
+      showToast('Leaderboard standings recalculated', 'success');
+    } catch (e: unknown) {
+      showToast((e as Error).message, 'error');
+      setRefreshing(false);
+    }
+  };
+
+  const liveUrl = `/live/${event.slug}`;
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+        <div>
+          <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Official Event Standings</h3>
+          <p style={{ margin: '0.2rem 0 0 0', color: 'var(--gray-600)', fontSize: '0.85rem' }}>
+            Multi-round weighted rankings automatically refreshed as jury marks are logged.
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <button className="btn btn-ghost" onClick={handleManualRefresh} disabled={refreshing} style={{ border: '2px solid var(--black)', boxShadow: 'var(--shadow-sm)' }}>
+            <RefreshCw size={14} className={refreshing ? 'spin' : ''} />
+            Recalculate Ranks
+          </button>
+          <a href={liveUrl} target="_blank" rel="noreferrer" className="btn btn-primary" style={{ textDecoration: 'none', border: '2px solid var(--black)', boxShadow: 'var(--shadow-sm)' }}>
+            <ExternalLink size={14} /> Open Live Board
+          </a>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="loading-center"><Spinner /></div>
+      ) : ranks.length === 0 ? (
+        <div className="card" style={{ textAlign: 'center', padding: '4rem 2rem', background: 'var(--white)' }}>
+          <Trophy size={48} style={{ color: 'var(--gray-600)', marginBottom: '1rem' }} />
+          <h3 style={{ marginBottom: '0.5rem' }}>No rankings calculated yet</h3>
+          <p style={{ color: 'var(--gray-600)', maxWidth: '420px', margin: '0 auto 1.5rem' }}>
+            Rankings are automatically generated once judges submit scores. You can also click recalculate once teams are enrolled.
+          </p>
+          <button className="btn btn-primary" onClick={handleManualRefresh} disabled={refreshing}>
+            <RefreshCw size={14} /> Calculate Rankings Now
+          </button>
+        </div>
+      ) : (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style={{ width: '80px', textAlign: 'center' }}>Rank</th>
+                <th>Team Name</th>
+                <th style={{ textAlign: 'center' }}>Standing</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ranks.map(r => (
+                <tr key={r.team_id}>
+                  <td style={{ textAlign: 'center' }}>
+                    <div className={`rank-pill ${r.rank === 1 ? 'rank-1' : r.rank === 2 ? 'rank-2' : r.rank === 3 ? 'rank-3' : ''}`}>
+                      {r.rank ? `#${r.rank}` : '—'}
+                    </div>
+                  </td>
+                  <td style={{ fontWeight: 800, fontSize: '1.05rem' }}>{r.team_name}</td>
+                  <td style={{ textAlign: 'center' }}>
+                    {r.rank === 1 && <span className="badge badge-yellow" style={{ border: '2px solid var(--black)' }}>🥇 1st Place (Leader)</span>}
+                    {r.rank === 2 && <span className="badge badge-cyan" style={{ border: '2px solid var(--black)' }}>🥈 2nd Place</span>}
+                    {r.rank === 3 && <span className="badge badge-purple" style={{ border: '2px solid var(--black)' }}>🥉 3rd Place</span>}
+                    {r.rank && r.rank > 3 && <span className="badge badge-gray">Top Finalist</span>}
+                    {!r.rank && <span className="badge badge-gray">Pending Scores</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── SHARE TAB ──
 function ShareTab({ event, onEventChange }: { event: Event; onEventChange: (e: Event) => void }) {
   const { showToast } = useApp();
@@ -2112,26 +2220,48 @@ function PublicLeaderboard({ token }: { token: string }) {
   const [entries, setEntries] = useState<PublicLeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [eventName, setEventName] = useState('');
-  const [available, setAvailable] = useState(true);
+  const [isOffline, setIsOffline] = useState(false);
+  const [isInvalid, setIsInvalid] = useState(false);
   const [search, setSearch] = useState('');
   const [projector, setProjector] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const load = useCallback(async () => {
     try {
+      const meta = await leaderboardService.getPublicLeaderboardMeta(token);
+      if (!meta) {
+        setIsInvalid(true);
+        setIsOffline(false);
+        setLoading(false);
+        return;
+      }
+      setIsInvalid(false);
+      setEventName(meta.event_name || '');
+
+      if (!meta.leaderboard_enabled) {
+        setIsOffline(true);
+        setEntries([]);
+        setLoading(false);
+        return;
+      }
+
+      setIsOffline(false);
       const data = await leaderboardService.getPublicLeaderboard(token);
-      if (data.length === 0) { setAvailable(false); setLoading(false); return; }
       setEntries(data);
-      setEventName(data[0]?.event_name || '');
-      setAvailable(true);
+      if (data.length > 0 && data[0].event_name) {
+        setEventName(data[0].event_name);
+      }
       setLastUpdated(new Date());
-    } catch { setAvailable(false); }
-    finally { setLoading(false); }
+    } catch (err) {
+      console.error('Error fetching public leaderboard:', err);
+    } finally {
+      setLoading(false);
+    }
   }, [token]);
 
   useEffect(() => {
     load();
-    // Poll every 5s
+    // Poll every 5s so toggles and new marks reflect automatically
     const interval = setInterval(load, 5000);
     return () => clearInterval(interval);
   }, [load]);
@@ -2144,12 +2274,45 @@ function PublicLeaderboard({ token }: { token: string }) {
     </div>
   );
 
-  if (!available) return (
-    <div className="public-lb" style={{ alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-      <div style={{ textAlign: 'center', padding: '2rem' }}>
-        <EyeOff size={64} style={{ color: 'var(--gray-600)', marginBottom: '1rem' }} />
-        <h2>Leaderboard Unavailable</h2>
-        <p>This leaderboard is currently offline or the link is invalid.</p>
+  if (isInvalid) return (
+    <div className="public-lb" style={{ alignItems: 'center', justifyContent: 'center', minHeight: '100vh', display: 'flex' }}>
+      <div className="card" style={{ maxWidth: '480px', width: '90%', textAlign: 'center', padding: '2.5rem 2rem', border: '3px solid var(--black)', boxShadow: '6px 6px 0px var(--black)' }}>
+        <div style={{ width: '64px', height: '64px', background: '#ffebee', border: '2px solid var(--black)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem', boxShadow: '3px 3px 0px var(--black)' }}>
+          <EyeOff size={32} color="var(--red)" strokeWidth={2.5} />
+        </div>
+        <h2 style={{ fontSize: '1.5rem', fontWeight: 900, marginBottom: '0.5rem', textTransform: 'uppercase' }}>Invalid Leaderboard Link</h2>
+        <p style={{ color: 'var(--gray-700)', fontSize: '0.9rem', marginBottom: '1.5rem', lineHeight: 1.5 }}>
+          We could not find an event associated with this link. Please double check the URL or contact your event administrator.
+        </p>
+        <button className="btn btn-primary" onClick={() => window.location.href = '/'} style={{ border: '2px solid var(--black)' }}>
+          Return to Home
+        </button>
+      </div>
+    </div>
+  );
+
+  if (isOffline) return (
+    <div className="public-lb" style={{ alignItems: 'center', justifyContent: 'center', minHeight: '100vh', display: 'flex' }}>
+      <div className="card" style={{ maxWidth: '520px', width: '90%', textAlign: 'center', padding: '2.5rem 2rem', border: '3px solid var(--black)', boxShadow: '6px 6px 0px var(--black)' }}>
+        <div style={{ width: '64px', height: '64px', background: 'var(--yellow)', border: '2px solid var(--black)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem', boxShadow: '3px 3px 0px var(--black)' }}>
+          <EyeOff size={32} color="var(--black)" strokeWidth={2.5} />
+        </div>
+        <div style={{ textTransform: 'uppercase', fontSize: '0.8rem', fontWeight: 800, color: 'var(--gray-600)', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>
+          {eventName || 'OFFICIAL COMPETITION'}
+        </div>
+        <h2 style={{ fontSize: '1.75rem', fontWeight: 900, marginBottom: '0.75rem', textTransform: 'uppercase' }}>Leaderboard Paused</h2>
+        <p style={{ color: 'var(--gray-700)', fontSize: '0.95rem', lineHeight: 1.5, marginBottom: '1.5rem', fontWeight: 500 }}>
+          The public leaderboard is currently offline or paused by the event organizers. This screen will automatically update as soon as live broadcast is resumed.
+        </p>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'var(--cream)', border: '2px solid var(--black)', padding: '0.4rem 0.8rem', fontSize: '0.78rem', fontWeight: 700, marginBottom: '1.5rem' }}>
+          <RefreshCw size={14} className="spin" />
+          Auto-checking for live broadcast...
+        </div>
+        <div>
+          <button className="btn btn-ghost" onClick={() => window.location.href = '/'} style={{ border: '2px solid var(--black)', background: 'var(--white)' }}>
+            Jury / Admin Login
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -2187,22 +2350,27 @@ function PublicLeaderboard({ token }: { token: string }) {
         <div className="banner-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '2rem', padding: '2rem', boxShadow: '6px 6px 0px var(--black)', border: 'var(--border-thick)' }}>
           <div>
             <span className="badge badge-black" style={{ marginBottom: '1rem', color: 'var(--yellow)', padding: '0.5rem 1rem', fontSize: '0.85rem', border: '2px solid var(--black)' }}>OFFICIAL COMPETITION STANDINGS</span>
-            <h1 style={{ fontSize: 'clamp(3rem, 6vw, 4.5rem)', color: 'var(--black)', margin: '0.5rem 0', letterSpacing: '-0.02em', lineHeight: 1 }}>LIVE LEADERBOARD</h1>
-            <p style={{ color: 'var(--black)', fontSize: '1.1rem', fontWeight: 800 }}>Official rankings and team marks. Round 1 & Round 2 cumulative evaluations.</p>
+            <h1 style={{ fontSize: 'clamp(2.5rem, 5vw, 4rem)', color: 'var(--black)', margin: '0.5rem 0', letterSpacing: '-0.02em', lineHeight: 1 }}>{eventName ? eventName.toUpperCase() : 'LIVE LEADERBOARD'}</h1>
+            <p style={{ color: 'var(--black)', fontSize: '1.1rem', fontWeight: 800 }}>Official real-time rankings and competition standings computed by jury evaluations.</p>
           </div>
           
-          <div style={{ display: 'flex', gap: '1rem' }}>
+          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
             <div className="stat-card white" style={{ padding: '1rem 1.5rem', border: 'var(--border-thick)', boxShadow: 'var(--shadow-sm)' }}>
-              <span className="stat-label">Participating Teams</span>
+              <span className="stat-label">Teams Competing</span>
               <span className="stat-value">{filtered.length}</span>
             </div>
             <div className="stat-card cyan" style={{ padding: '1rem 1.5rem', border: 'var(--border-thick)', boxShadow: 'var(--shadow-sm)' }}>
-              <span className="stat-label">Current Phase</span>
-              <span className="stat-value" style={{ fontSize: '2.2rem' }}>Round 1</span>
+              <span className="stat-label">Current Leader</span>
+              <span className="stat-value" style={{ fontSize: '1.4rem', whiteSpace: 'nowrap' }}>
+                {entries.find(e => e.rank === 1)?.team_name || 'Calculating...'}
+              </span>
             </div>
             <div className="stat-card green" style={{ padding: '1rem 1.5rem', border: 'var(--border-thick)', boxShadow: 'var(--shadow-sm)' }}>
-              <span className="stat-label">Marks Logged</span>
-              <span className="stat-value" style={{ fontSize: '2.2rem' }}>0</span>
+              <span className="stat-label">Broadcast Feed</span>
+              <span className="stat-value" style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--green)', border: '1.5px solid var(--black)', display: 'inline-block' }} />
+                LIVE
+              </span>
             </div>
           </div>
         </div>
@@ -2210,13 +2378,12 @@ function PublicLeaderboard({ token }: { token: string }) {
         <div style={{ background: 'var(--white)', border: 'var(--border-thick)', padding: '1rem', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', boxShadow: '4px 4px 0px var(--black)' }}>
           <div className="search-box" style={{ flex: 1, maxWidth: '600px' }}>
             <Search size={20} className="search-icon" style={{ left: '1rem' }} />
-            <input className="input" placeholder="SEARCH TEAM NAME OR MEMBERS..." value={search} onChange={e => setSearch(e.target.value)} style={{ paddingLeft: '3rem', border: '3px solid var(--black)', fontWeight: 800, fontSize: '1.1rem', boxShadow: 'none' }} />
+            <input className="input" placeholder="SEARCH TEAM NAME..." value={search} onChange={e => setSearch(e.target.value)} style={{ paddingLeft: '3rem', border: '3px solid var(--black)', fontWeight: 800, fontSize: '1.1rem', boxShadow: 'none' }} />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <span style={{ fontWeight: 800, fontSize: '0.85rem' }}>DISPLAY:</span>
-            <button className="btn btn-primary" style={{ padding: '0.6rem 1.2rem', border: '3px solid var(--black)', boxShadow: '2px 2px 0px var(--black)' }}>CUMULATIVE</button>
-            <button className="btn btn-ghost" style={{ padding: '0.6rem 1.2rem', background: 'var(--white)', border: '3px solid var(--black)', boxShadow: '2px 2px 0px var(--black)', color: 'var(--black)' }}>ROUND 1</button>
-            <button className="btn btn-ghost" style={{ padding: '0.6rem 1.2rem', background: 'var(--white)', border: '3px solid var(--black)', boxShadow: '2px 2px 0px var(--black)', color: 'var(--black)' }}>ROUND 2</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <span className="badge badge-yellow" style={{ border: '2px solid var(--black)', fontWeight: 800 }}>
+              AUTO-SYNCED (5s)
+            </span>
           </div>
         </div>
 
@@ -2224,11 +2391,9 @@ function PublicLeaderboard({ token }: { token: string }) {
           <table>
             <thead>
               <tr>
-                <th style={{ width: '80px', textAlign: 'center' }}>RANK</th>
-                <th>TEAM NAME & MEMBERS</th>
-                <th style={{ textAlign: 'center' }}>ROUND 1<br/>MARK</th>
-                <th style={{ textAlign: 'center' }}>ROUND 2<br/>MARK</th>
-                <th style={{ textAlign: 'right' }}>CUMULATIVE<br/>SCORE</th>
+                <th style={{ width: '100px', textAlign: 'center' }}>RANK</th>
+                <th>TEAM NAME</th>
+                <th style={{ textAlign: 'center', width: '260px' }}>OFFICIAL STANDING</th>
               </tr>
             </thead>
             <tbody>
@@ -2242,17 +2407,15 @@ function PublicLeaderboard({ token }: { token: string }) {
                   </td>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span className="lb-team-name" style={{ fontSize: '1.1rem' }}>{entry.team_name}</span>
-                      <span className="badge badge-gray" style={{ fontSize: '0.65rem' }}>OPEN INNOVATION</span>
-                    </div>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--gray-600)', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                      <Users size={12} /> Team Members Hidden
+                      <span className="lb-team-name" style={{ fontSize: '1.2rem', fontWeight: 800 }}>{entry.team_name}</span>
                     </div>
                   </td>
-                  <td style={{ textAlign: 'center', color: 'var(--gray-400)', fontStyle: 'italic', fontSize: '0.85rem' }}>Pending</td>
-                  <td style={{ textAlign: 'center', color: 'var(--gray-400)', fontStyle: 'italic', fontSize: '0.85rem' }}>Not Started</td>
-                  <td style={{ textAlign: 'right' }}>
-                    <span className="badge badge-green" style={{ fontSize: '1rem', padding: '0.5rem 1rem' }}>0 / 100</span>
+                  <td style={{ textAlign: 'center' }}>
+                    {entry.rank === 1 && <span className="badge badge-yellow" style={{ fontSize: '0.85rem', padding: '0.4rem 0.8rem', border: '2px solid var(--black)' }}>🥇 1ST PLACE (LEADER)</span>}
+                    {entry.rank === 2 && <span className="badge badge-cyan" style={{ fontSize: '0.85rem', padding: '0.4rem 0.8rem', border: '2px solid var(--black)' }}>🥈 2ND PLACE (RUNNER UP)</span>}
+                    {entry.rank === 3 && <span className="badge badge-purple" style={{ fontSize: '0.85rem', padding: '0.4rem 0.8rem', border: '2px solid var(--black)' }}>🥉 3RD PLACE (PODIUM)</span>}
+                    {entry.rank && entry.rank > 3 && <span className="badge badge-gray" style={{ fontSize: '0.85rem', padding: '0.4rem 0.8rem' }}>FINALIST</span>}
+                    {!entry.rank && <span className="badge badge-gray" style={{ fontSize: '0.85rem', padding: '0.4rem 0.8rem' }}>PARTICIPANT</span>}
                   </td>
                 </tr>
               ))}
@@ -2458,7 +2621,8 @@ export default function App() {
   // Check if this is a public leaderboard URL
   const publicToken = (() => {
     const path = window.location.pathname;
-    if (path.startsWith('/l/')) return path.slice(3);
+    if (path.startsWith('/l/')) return path.slice(3) || null;
+    if (path.startsWith('/live/')) return path.slice(6) || null;
     return null;
   })();
 

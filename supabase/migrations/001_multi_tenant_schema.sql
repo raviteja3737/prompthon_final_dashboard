@@ -332,9 +332,37 @@ CREATE TRIGGER trg_leaderboard_on_eval
     AFTER INSERT OR UPDATE OR DELETE ON public.evaluations
     FOR EACH ROW EXECUTE FUNCTION public.trg_refresh_leaderboard();
 
+DROP TRIGGER IF EXISTS trg_leaderboard_on_team ON public.teams;
+CREATE TRIGGER trg_leaderboard_on_team
+    AFTER INSERT OR UPDATE OR DELETE ON public.teams
+    FOR EACH ROW EXECUTE FUNCTION public.trg_refresh_leaderboard();
+
+DROP TRIGGER IF EXISTS trg_leaderboard_on_round ON public.rounds;
+CREATE TRIGGER trg_leaderboard_on_round
+    AFTER UPDATE OF status, weight ON public.rounds
+    FOR EACH ROW EXECUTE FUNCTION public.trg_refresh_leaderboard();
+
 -- ─────────────────────────────────────────────
--- 16. PUBLIC LEADERBOARD RPC (anon safe, shows rank+name only)
+-- 16. PUBLIC LEADERBOARD RPCs (anon safe)
 -- ─────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION public.get_public_leaderboard_meta(p_token TEXT)
+RETURNS TABLE (
+    event_id            UUID,
+    event_name          TEXT,
+    leaderboard_enabled BOOLEAN,
+    status              TEXT
+) LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+    RETURN QUERY
+    SELECT e.id, e.name::TEXT, e.leaderboard_enabled, e.status::TEXT
+    FROM public.events e
+    WHERE e.public_token = p_token OR e.slug = p_token
+    LIMIT 1;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_public_leaderboard_meta(TEXT) TO anon, authenticated;
+
 CREATE OR REPLACE FUNCTION public.get_public_leaderboard(p_token TEXT)
 RETURNS TABLE (
     event_name TEXT,
@@ -348,7 +376,7 @@ BEGIN
     SELECT e.id, e.leaderboard_enabled
     INTO v_event_id, v_enabled
     FROM public.events e
-    WHERE e.public_token = p_token;
+    WHERE e.public_token = p_token OR e.slug = p_token;
 
     IF v_event_id IS NULL OR NOT v_enabled THEN
         RETURN;
@@ -362,6 +390,8 @@ BEGIN
         ORDER BY lr.rank ASC NULLS LAST, lr.team_name ASC;
 END;
 $$;
+
+GRANT EXECUTE ON FUNCTION public.get_public_leaderboard(TEXT) TO anon, authenticated;
 
 -- ─────────────────────────────────────────────
 -- 17. ADAPTIVE TEAM SEARCH RPC (trigram + ILIKE)
@@ -432,6 +462,19 @@ CREATE POLICY "organizer_read_own_event" ON public.events
         SELECT 1 FROM public.event_members em
         WHERE em.event_id = id AND em.user_id = auth.uid()
     ));
+
+CREATE POLICY "organizer_update_own_event" ON public.events
+    FOR UPDATE USING (
+        EXISTS (
+            SELECT 1 FROM public.event_members em
+            WHERE em.event_id = id AND em.user_id = auth.uid() AND em.role = 'organizer'
+        )
+    ) WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM public.event_members em
+            WHERE em.event_id = id AND em.user_id = auth.uid() AND em.role = 'organizer'
+        )
+    );
 
 -- ── event_members ──
 CREATE POLICY "admin_all_event_members" ON public.event_members

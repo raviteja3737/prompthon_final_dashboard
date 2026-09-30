@@ -21,6 +21,14 @@ export const leaderboardService = {
     return data || [];
   },
 
+  /** For public - check if event exists and if leaderboard is enabled */
+  async getPublicLeaderboardMeta(token: string): Promise<{ event_id: string; event_name: string; leaderboard_enabled: boolean; status: string } | null> {
+    const { data, error } = await supabase
+      .rpc('get_public_leaderboard_meta', { p_token: token });
+    if (error) throw error;
+    return (data && data[0]) || null;
+  },
+
   /** Manually trigger a leaderboard refresh (super admin only) */
   async refreshLeaderboard(eventId: string): Promise<void> {
     const { error } = await supabase.rpc('refresh_leaderboard', { p_event_id: eventId });

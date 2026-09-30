@@ -56,6 +56,13 @@ export const eventService = {
   async toggleLeaderboard(eventId: string, enabled: boolean): Promise<void> {
     const { error } = await supabase.from('events').update({ leaderboard_enabled: enabled }).eq('id', eventId);
     if (error) throw error;
+    if (enabled) {
+      try {
+        await supabase.rpc('refresh_leaderboard', { p_event_id: eventId });
+      } catch {
+        // best effort
+      }
+    }
   },
 
   async regenerateToken(eventId: string): Promise<string> {
