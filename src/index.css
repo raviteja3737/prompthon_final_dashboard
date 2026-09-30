@@ -167,9 +167,11 @@ tr:hover td { background: var(--yellow) !important; color: var(--black); }
 .badge-black  { background: var(--black); color: var(--white); }
 
 /* Inputs */
+.form-grid { display: flex; flex-direction: column; gap: 1.5rem; }
+
 .input {
   display: block; width: 100%; padding: 0.75rem 1rem;
-  background: var(--white); border: var(--border); color: var(--black);
+  background: var(--white); border: 2px solid var(--black); color: var(--black);
   font-family: var(--font); font-size: 0.95rem; font-weight: 600; outline: none;
   transition: all 0.1s;
   box-shadow: var(--shadow-sm);
@@ -180,7 +182,7 @@ tr:hover td { background: var(--yellow) !important; color: var(--black); }
 
 .input-group { display: flex; flex-direction: column; gap: 0.5rem; }
 .input-label { font-size: 0.85rem; font-weight: 800; text-transform: uppercase;
-               letter-spacing: 0.05em; color: var(--black); }
+               letter-spacing: 0.05em; color: var(--black); margin-bottom: 0.1rem; }
 
 /* Select */
 select.input {

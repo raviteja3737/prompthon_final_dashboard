@@ -78,7 +78,9 @@ function Modal({ title, onClose, children, size = '' }: {
       <div className={`modal ${size}`}>
         <div className="modal-header">
           <span className="modal-title">{title}</span>
-          <button className="btn btn-ghost btn-icon btn-sm" onClick={onClose}><X size={16} /></button>
+          <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--black)', padding: '0.25rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <X size={18} color="var(--black)" strokeWidth={1.5} />
+          </button>
         </div>
         {children}
       </div>

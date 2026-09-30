@@ -43,7 +43,9 @@ export const eventService = {
   },
 
   async createEvent(eventName: string, organizerEmail: string): Promise<CreatedCredentials> {
-    return callEdgeFunction<CreatedCredentials>('create-event', { eventName, organizerEmail });
+    const result = await callEdgeFunction<CreatedCredentials>('create-event', { eventName, organizerEmail });
+    result.loginUrl = window.location.origin;
+    return result;
   },
 
   async updateEventStatus(eventId: string, status: 'draft' | 'active' | 'closed'): Promise<void> {
