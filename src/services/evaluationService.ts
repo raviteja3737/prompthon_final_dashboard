@@ -8,8 +8,7 @@ export const evaluationService = {
       .select(`
         *,
         teams(name),
-        rounds(name, seq),
-        event_members!jury_id(display_name, email)
+        rounds(name, seq)
       `)
       .eq('event_id', eventId)
       .order('submitted_at', { ascending: false });
@@ -21,13 +20,30 @@ export const evaluationService = {
     const { data, error } = await q;
     if (error) throw error;
 
-    return (data || []).map((e) => ({
+    const evals = data || [];
+
+    const juryIds = [...new Set(evals.map((e: any) => e.jury_id))];
+    const juryMap: Record<string, {display_name:string, email:string}> = {};
+    
+    if (juryIds.length > 0) {
+      const { data: juries } = await supabase
+        .from('event_members')
+        .select('user_id, display_name, email')
+        .eq('event_id', eventId)
+        .in('user_id', juryIds);
+        
+      if (juries) {
+        juries.forEach(j => { juryMap[j.user_id] = j; });
+      }
+    }
+
+    return evals.map((e) => ({
       ...(e as unknown as Evaluation),
       team_name: (e as unknown as Record<string, {name:string}|null>).teams?.name ?? '',
       round_name: (e as unknown as Record<string, {name:string}|null>).rounds?.name ?? '',
       round_seq: (e as unknown as Record<string, {seq:number}|null>).rounds?.seq ?? 0,
-      jury_name: (e as unknown as Record<string, {display_name:string}|null>).event_members?.display_name ?? '',
-      jury_email: (e as unknown as Record<string, {email:string}|null>).event_members?.email ?? '',
+      jury_name: juryMap[(e as any).jury_id]?.display_name ?? '',
+      jury_email: juryMap[(e as any).jury_id]?.email ?? '',
     }));
   },
 
