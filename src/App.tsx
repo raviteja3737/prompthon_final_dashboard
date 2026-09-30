@@ -1758,74 +1758,160 @@ function JuryConsole({ eventId }: { eventId: string }) {
     }, 200);
   };
 
-  const evaluatedTeamIds = new Set(myEvals.filter(e => activeRound && e.round_id === activeRound.id).map(e => e.team_id));
+  const evalByTeamId = new Map(
+    myEvals
+      .filter(e => activeRound && e.round_id === activeRound.id)
+      .map(e => [e.team_id, e])
+  );
 
   return (
-    <div style={{ maxWidth: '900px', margin: '0 auto', padding: '2rem' }}>
-      {/* Header */}
-      <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{ marginBottom: '0.25rem' }}>Jury <span style={{ color: 'var(--cyan)' }}>Console</span></h1>
-        {event && <p>{event.name}</p>}
-      </div>
+    <div className="jury-page">
+      <div className="jury-shell">
+        {/* Header Shell */}
+        <div style={{ marginBottom: '1.75rem' }}>
+          <h1 className="jury-main-title">
+            JURY <span className="jury-badge-cyan">CONSOLE</span>
+          </h1>
+          {event && (
+            <div className="jury-subtitle">
+              <span>EVENT:</span> <strong>{event.name}</strong>
+            </div>
+          )}
 
-      {/* Active Round Banner */}
-      {activeRound ? (
-        <div className="info-banner" style={{ marginBottom: '1.5rem' }}>
-          <Zap size={14} />
-          <strong>Active:</strong> Round {activeRound.seq} — {activeRound.name}
-          &nbsp;| Max Marks: <strong>{activeRound.max_marks_total}</strong>
+          {/* Active Round Status Banner */}
+          {activeRound ? (
+            <div className="jury-active-banner">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: 800, fontSize: '0.9rem' }}>
+                <Zap size={16} fill="#FFE600" />
+                <span>Active: Round {activeRound.seq} — {activeRound.name}</span>
+              </div>
+              <div className="jury-metric-pill">
+                Max Marks: {activeRound.max_marks_total ?? (activeRound.criteria || []).reduce((s, c) => s + c.max_marks, 0)}
+              </div>
+            </div>
+          ) : (
+            <div className="warn-banner" style={{ border: '2px solid #000000', boxShadow: '3px 3px 0px #000000', marginTop: '1rem', background: '#FFFFFF' }}>
+              <AlertTriangle size={16} color="#DC2626" />
+              <span style={{ fontWeight: 800 }}>No active round. Scoring is currently disabled.</span>
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="warn-banner" style={{ marginBottom: '1.5rem' }}>
-          <AlertTriangle size={14} />No active round. Scoring is currently disabled.
+
+        {/* Search & Filter Bar */}
+        <div className="jury-search-container">
+          <Search size={18} className="jury-search-icon-pos" />
+          <input
+            className="jury-search-input"
+            placeholder="Search team name, ID, or track..."
+            value={search}
+            onChange={e => handleSearch(e.target.value)}
+          />
         </div>
-      )}
 
-      {/* Search */}
-      <div className="search-box" style={{ marginBottom: '1.5rem' }}>
-        <Search size={14} className="search-icon" />
-        <input className="input" placeholder="Search teams or members (typo-tolerant)..."
-          value={search} onChange={e => handleSearch(e.target.value)} style={{ paddingLeft: '2.25rem' }} />
-      </div>
+        {/* Team Evaluation Queue (Card Grid) */}
+        {loading ? (
+          <div className="loading-center"><Spinner /></div>
+        ) : (
+          <div>
+            {teams.map(t => {
+              const existing = evalByTeamId.get(t.id);
+              const evaluated = !!existing;
+              const scoreTotal = existing ? (existing.total ?? Object.values(existing.scores || {}).reduce((s, v) => s + Number(v), 0)) : null;
+              const maxMarks = activeRound?.max_marks_total ?? (activeRound?.criteria || []).reduce((s, c) => s + c.max_marks, 0);
 
-      {loading ? <div className="loading-center"><Spinner /></div> : (
-        <div style={{ display: 'grid', gap: '0.75rem' }}>
-          {teams.map(t => {
-            const evaluated = evaluatedTeamIds.has(t.id);
-            return (
-              <div key={t.id} className={`team-eval-card ${evaluated ? 'evaluated' : ''}`}
-                onClick={() => activeRound && setScoringTeam(t)}
-                style={{ cursor: activeRound ? 'pointer' : 'default', opacity: activeRound ? 1 : 0.6 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: '1rem' }}>{t.name}</div>
-                    {t.members && <div style={{ color: 'var(--gray-600)', fontSize: '0.85rem', marginTop: '0.25rem' }}>{t.members}</div>}
-                    {t.tag && <span className="badge badge-cyan" style={{ marginTop: '0.4rem' }}>{t.tag}</span>}
+              return (
+                <div
+                  key={t.id}
+                  className={`jury-team-card ${evaluated ? 'is-scored' : ''}`}
+                >
+                  {/* Left Section (Team Details) */}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                      <h3 style={{ fontSize: '1.25rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.02em', margin: 0, color: '#000000' }}>
+                        {t.name}
+                      </h3>
+                      {t.tag && (
+                        <span style={{
+                          backgroundColor: '#00F0FF',
+                          border: '2px solid #000000',
+                          padding: '0.15rem 0.5rem',
+                          fontSize: '0.75rem',
+                          fontWeight: 800,
+                          textTransform: 'uppercase',
+                          boxShadow: '1.5px 1.5px 0px #000000'
+                        }}>
+                          {t.tag}
+                        </span>
+                      )}
+                    </div>
+                    {t.members && (
+                      <div style={{ fontSize: '0.8rem', fontFamily: 'var(--mono)', color: '#525252', marginTop: '0.35rem' }}>
+                        {t.members}
+                      </div>
+                    )}
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.4rem' }}>
-                    <span className={`badge ${evaluated ? 'badge-green' : 'badge-gray'}`}>
-                      {evaluated ? <><Check size={10} />Evaluated</> : 'Pending'}
-                    </span>
-                    {activeRound && <span style={{ color: 'var(--gray-600)', fontSize: '0.75rem' }}>Click to score →</span>}
+
+                  {/* Right Section (Action & Status) */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                    {evaluated ? (
+                      <button
+                        type="button"
+                        className="btn-score-scored"
+                        onClick={() => activeRound && setScoringTeam(t)}
+                        title="Click to review or edit scores"
+                      >
+                        <CheckCircle2 size={16} />
+                        <span>SCORED ({scoreTotal ?? '—'}/{maxMarks}) ✎ EDIT</span>
+                      </button>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <span style={{
+                          backgroundColor: '#E5E7EB',
+                          border: '2px solid #000000',
+                          fontSize: '0.75rem',
+                          fontWeight: 800,
+                          padding: '0.25rem 0.5rem',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.04em'
+                        }}>
+                          PENDING
+                        </span>
+                        <button
+                          type="button"
+                          className="btn-score-unscored"
+                          disabled={!activeRound}
+                          onClick={() => activeRound && setScoringTeam(t)}
+                        >
+                          <span>SCORE TEAM →</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
-            );
-          })}
-          {teams.length === 0 && <div className="empty-state"><Users size={40} /><h3>No teams found</h3></div>}
-        </div>
-      )}
+              );
+            })}
 
-      {scoringTeam && activeRound && (
-        <ScoringModal
-          team={scoringTeam}
-          round={activeRound}
-          eventId={eventId}
-          existingEval={myEvals.find(e => e.team_id === scoringTeam.id && e.round_id === activeRound.id) || null}
-          onClose={() => setScoringTeam(null)}
-          onSubmitted={() => { setScoringTeam(null); load(); }}
-        />
-      )}
+            {teams.length === 0 && (
+              <div className="card" style={{ textAlign: 'center', padding: '3.5rem 1.5rem', background: '#FFFFFF', border: '2px solid #000000', boxShadow: '4px 4px 0px #000000' }}>
+                <Users size={40} style={{ margin: '0 auto 1rem auto', color: '#6B7280' }} />
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 900, textTransform: 'uppercase' }}>No teams found</h3>
+                <p style={{ color: '#6B7280', fontSize: '0.85rem', marginTop: '0.25rem' }}>Try refining your search query or check back later.</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {scoringTeam && activeRound && (
+          <ScoringModal
+            team={scoringTeam}
+            round={activeRound}
+            eventId={eventId}
+            existingEval={myEvals.find(e => e.team_id === scoringTeam.id && e.round_id === activeRound.id) || null}
+            onClose={() => setScoringTeam(null)}
+            onSubmitted={() => { setScoringTeam(null); load(); }}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -1847,59 +1933,171 @@ function ScoringModal({ team, round, eventId, existingEval, onClose, onSubmitted
   const total = Object.values(scores).reduce((s, v) => s + Number(v), 0);
   const maxTotal = round.max_marks_total ?? criteria.reduce((s, c) => s + c.max_marks, 0);
 
+  const handleScoreChange = (criterionId: string, maxMarks: number, rawVal: number | string) => {
+    let val = Number(rawVal);
+    if (isNaN(val)) val = 0;
+    if (val < 0) val = 0;
+    if (val > maxMarks) val = maxMarks;
+    setScores(prev => ({ ...prev, [criterionId]: val }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     try {
       await evaluationService.submitEvaluation({ eventId, roundId: round.id, teamId: team.id, scores, remarks });
-      showToast('Scores submitted!', 'success');
+      showToast('Scores submitted successfully!', 'success');
       onSubmitted();
     } catch (err: unknown) { showToast((err as Error).message, 'error'); }
     finally { setSubmitting(false); }
   };
 
   return (
-    <Modal title={`Score: ${team.name}`} onClose={onClose}>
-      <form onSubmit={handleSubmit}>
-        <div className="modal-body">
-          <p style={{ marginBottom: '1rem', color: 'var(--gray-600)' }}>Round {round.seq}: {round.name}</p>
-
-          {criteria.map(c => (
-            <div key={c.id} className="score-row">
-              <span className="score-label">{c.label}</span>
-              <span className="score-max">/{c.max_marks}</span>
-              <div className="slider-wrap" style={{ flex: 1 }}>
-                <input type="range" min={0} max={c.max_marks} step={0.5}
-                  value={scores[c.id] ?? 0}
-                  onChange={e => setScores(prev => ({ ...prev, [c.id]: Number(e.target.value) }))} />
+    <Modal title={`Evaluation: ${team.name}`} onClose={onClose} size="modal-lg">
+      <form onSubmit={handleSubmit} style={{ width: '100%' }}>
+        <div style={{ padding: '1.5rem', background: '#FFFFFF' }}>
+          {/* Header section with live total */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderBottom: '2px solid #000000',
+            paddingBottom: '1rem',
+            marginBottom: '1.5rem',
+            flexWrap: 'wrap',
+            gap: '1rem'
+          }}>
+            <div>
+              <h2 style={{ fontSize: '1.75rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.02em', margin: 0, color: '#000000' }}>
+                {team.name}
+              </h2>
+              <div style={{ fontSize: '0.85rem', fontFamily: 'var(--mono)', fontWeight: 700, color: '#525252', marginTop: '0.25rem' }}>
+                ROUND {round.seq}: {round.name.toUpperCase()}
               </div>
-              <input className="input" type="number" min={0} max={c.max_marks} step={0.5}
-                style={{ width: '70px', textAlign: 'center' }}
-                value={scores[c.id] ?? 0}
-                onChange={e => {
-                  const v = Math.min(c.max_marks, Math.max(0, Number(e.target.value)));
-                  setScores(prev => ({ ...prev, [c.id]: v }));
-                }} />
             </div>
-          ))}
 
-          <div style={{ margin: '1rem 0', padding: '0.75rem', background: 'var(--gray-300)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontWeight: 700 }}>Total Score</span>
-            <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: '1.5rem', color: 'var(--yellow)' }}>
-              {total} <span style={{ color: 'var(--gray-600)', fontSize: '1rem' }}>/ {maxTotal}</span>
-            </span>
+            <div style={{
+              backgroundColor: '#FFE600',
+              border: '2px solid #000000',
+              padding: '0.35rem 0.85rem',
+              fontFamily: 'var(--mono)',
+              fontWeight: 900,
+              fontSize: '1.15rem',
+              boxShadow: '3px 3px 0px #000000',
+              whiteSpace: 'nowrap'
+            }}>
+              TOTAL: {total} / {maxTotal}
+            </div>
           </div>
 
-          <div className="input-group">
-            <label className="input-label">Remarks (Optional)</label>
-            <textarea className="input" rows={3} placeholder="Brief feedback..."
-              value={remarks} onChange={e => setRemarks(e.target.value)} />
+          {/* Criteria Cards */}
+          <div style={{ marginBottom: '1.5rem' }}>
+            {criteria.map(c => {
+              const currentScore = scores[c.id] ?? 0;
+              return (
+                <div key={c.id} className="criterion-box">
+                  <div className="criterion-header-row">
+                    <span className="criterion-title-text">{c.label}</span>
+                    <span className="criterion-pts-pill">Max: {c.max_marks} pts</span>
+                  </div>
+                  <div className="criterion-input-row">
+                    <input
+                      type="range"
+                      min={0}
+                      max={c.max_marks}
+                      step={0.5}
+                      value={currentScore}
+                      onChange={e => handleScoreChange(c.id, c.max_marks, e.target.value)}
+                      className="brutalist-slider"
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      max={c.max_marks}
+                      step={0.5}
+                      value={currentScore}
+                      onChange={e => handleScoreChange(c.id, c.max_marks, e.target.value)}
+                      className="criterion-numeric-box"
+                    />
+                  </div>
+                </div>
+              );
+            })}
+
+            {criteria.length === 0 && (
+              <p style={{ color: '#6B7280', fontSize: '0.9rem', fontStyle: 'italic', padding: '1rem', border: '1px dashed #000000', background: '#F9FAFB' }}>
+                No criteria configured for this round.
+              </p>
+            )}
+          </div>
+
+          {/* Remarks Section */}
+          <div className="input-group" style={{ marginBottom: '1rem' }}>
+            <label className="input-label" style={{ fontWeight: 800 }}>Remarks / Feedback (Optional)</label>
+            <textarea
+              className="input"
+              rows={3}
+              placeholder="Add feedback or private notes for this evaluation..."
+              value={remarks}
+              onChange={e => setRemarks(e.target.value)}
+              style={{ border: '2px solid #000000', boxShadow: '2px 2px 0px #000000' }}
+            />
           </div>
         </div>
-        <div className="modal-footer">
-          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-          <button type="submit" className="btn btn-primary" disabled={submitting}>
-            {submitting ? <Spinner size={14} /> : <><CheckCircle2 size={14} />{existingEval ? 'Update' : 'Submit'} Scores</>}
+
+        {/* Scoring Action Footer */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '1rem',
+          padding: '1.25rem 1.5rem',
+          background: '#F8F7F4',
+          borderTop: '2px solid #000000'
+        }}>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={onClose}
+            style={{
+              border: '2px solid #000000',
+              backgroundColor: '#FFFFFF',
+              padding: '0.65rem 1.25rem',
+              fontWeight: 800,
+              fontSize: '0.85rem',
+              textTransform: 'uppercase',
+              boxShadow: '2px 2px 0px #000000'
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={submitting}
+            style={{
+              flex: 1,
+              border: '2px solid #000000',
+              backgroundColor: '#FFE600',
+              padding: '0.75rem 1.5rem',
+              fontWeight: 900,
+              fontSize: '1rem',
+              textTransform: 'uppercase',
+              boxShadow: '3px 3px 0px #000000',
+              cursor: submitting ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem',
+              transition: 'all 0.1s ease'
+            }}
+          >
+            {submitting ? (
+              <Spinner size={16} />
+            ) : (
+              <>
+                <CheckCircle2 size={16} />
+                <span>{existingEval ? 'Update Evaluation' : 'Submit Evaluation'}</span>
+              </>
+            )}
           </button>
         </div>
       </form>
