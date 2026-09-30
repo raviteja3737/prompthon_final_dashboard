@@ -515,13 +515,13 @@ function EventDeepView({ event, onClose, onRefresh }: {
     <Modal title={`📊 ${event.name}`} onClose={onClose} size="modal-xl">
       <div className="modal-body" style={{ padding: 0 }}>
         {/* Tabs */}
-        <div className="tabs" style={{ padding: '0 1.5rem', borderBottom: 'var(--border)' }}>
+        <div className="tabs" style={{ padding: '0.75rem 1.5rem', borderBottom: '2px solid var(--black)', background: 'var(--cream)', flexWrap: 'wrap' }}>
           {(['overview','teams','juries','rounds','marks','leaderboard','audit'] as const).map(t => (
             <button key={t} className={`tab-btn ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>
               {t.charAt(0).toUpperCase() + t.slice(1)}
             </button>
           ))}
-          <button className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto', marginTop: '0.5rem' }}
+          <button className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto', border: '2px solid var(--black)', background: 'var(--white)' }}
             onClick={handleExportEvent}>
             <Download size={12} />Export CSV
           </button>
@@ -792,22 +792,48 @@ function OrganizerWorkspace({ eventId, slug }: { eventId: string; slug: string }
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ padding: '0 2rem', borderBottom: '3px solid var(--black)', background: 'var(--white)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1.5rem 0 1rem 0' }}>
-          <h2 style={{ fontSize: '2rem', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{event.name}</h2>
-          <StatusBadge status={event.status} />
+      <div className="workspace-header">
+        <div className="workspace-header-top">
+          <div className="workspace-title-group">
+            <h2 className="workspace-title">{event.name}</h2>
+            <StatusBadge status={event.status} />
+            <span
+              className="badge badge-gray"
+              title="Event slug"
+              style={{ fontFamily: 'var(--mono)', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+            >
+              <Link2 size={12} />/{slug}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <a
+              href={`/live/${slug}`}
+              target="_blank"
+              rel="noreferrer"
+              className="btn btn-ghost btn-sm"
+              style={{ border: '2px solid var(--black)', background: 'var(--cream)', textDecoration: 'none' }}
+              title="Open public leaderboard in new tab"
+            >
+              <Globe size={14} />
+              <span>Live Board</span>
+              <ExternalLink size={12} />
+            </a>
+          </div>
         </div>
+
         <div className="tabs">
           {([
-            ['teams',  'Teams & Participants'],
-            ['rounds', 'Rounds & Criteria'],
-            ['juries', 'Juries'],
-            ['marks',  'Marks'],
-            ['share',  'Share'],
-            ['export', 'Export'],
-          ] as const).map(([key, label]) => (
+            ['teams',  'Teams & Participants', Users],
+            ['rounds', 'Rounds & Criteria', Layers],
+            ['juries', 'Juries', Shield],
+            ['marks',  'Marks', BarChart2],
+            ['share',  'Share', Share2],
+            ['export', 'Export', Download],
+          ] as const).map(([key, label, TabIcon]) => (
             <button key={key} className={`tab-btn ${tab === key ? 'active' : ''}`} onClick={() => setTab(key)}>
-              {label}
+              <TabIcon size={15} />
+              <span>{label}</span>
             </button>
           ))}
         </div>
@@ -1135,7 +1161,11 @@ function RoundsTab({ eventId }: { eventId: string }) {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: '1.5rem' }}>
-        <button className="btn btn-primary" onClick={() => setAddingRound(true)} style={{ border: '2px solid var(--black)', boxShadow: 'var(--shadow-sm)' }}><Plus size={14} />Add Round</button>
+        {!addingRound && (
+          <button className="btn btn-primary" onClick={() => setAddingRound(true)} style={{ border: '2px solid var(--black)', boxShadow: 'var(--shadow-sm)' }}>
+            <Plus size={14} />Add Round
+          </button>
+        )}
       </div>
 
       {loading ? <div className="loading-center"><Spinner /></div> : (
@@ -1191,23 +1221,106 @@ function RoundsTab({ eventId }: { eventId: string }) {
           )}
 
           {addingRound && (
-            <div className="round-card" style={{ marginTop: '1rem', borderColor: 'var(--yellow)', borderStyle: 'dashed' }}>
-              <h4 style={{ marginBottom: '0.75rem' }}>New Round</h4>
-              <div className="form-row">
-                <div className="input-group">
-                  <label className="input-label">Round Name</label>
-                  <input className="input" placeholder="e.g. Preliminary Round" value={newRoundName}
-                    onChange={e => setNewRoundName(e.target.value)} autoFocus />
+            <div
+              style={{
+                background: 'var(--white)',
+                border: '3px solid var(--black)',
+                boxShadow: '6px 6px 0px var(--black)',
+                maxWidth: '680px',
+                marginTop: '1.5rem',
+                marginBottom: '1.5rem',
+              }}
+            >
+              <div
+                style={{
+                  background: 'var(--yellow)',
+                  borderBottom: '3px solid var(--black)',
+                  padding: '0.85rem 1.25rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontWeight: 900, fontSize: '0.95rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  <Layers size={18} />
+                  <span>Configure New Round</span>
                 </div>
-                <div className="input-group">
-                  <label className="input-label">Weight (for ranking)</label>
-                  <input className="input" type="number" min="0.1" step="0.1" value={newWeight}
-                    onChange={e => setNewWeight(Number(e.target.value))} />
+                <button
+                  type="button"
+                  className="btn btn-icon btn-sm"
+                  onClick={() => setAddingRound(false)}
+                  style={{ background: 'var(--red)', color: 'var(--white)', padding: '0.25rem', border: '2px solid var(--black)' }}
+                  title="Cancel"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+
+              <div style={{ padding: '1.5rem' }}>
+                <p style={{ fontSize: '0.85rem', color: 'var(--gray-700)', marginBottom: '1.25rem', lineHeight: 1.4 }}>
+                  Add a competition stage. After adding, you can define individual criteria and mark allocations.
+                </p>
+
+                <div className="form-row">
+                  <div className="input-group">
+                    <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <span>Round Name</span>
+                      <span style={{ color: 'var(--red)' }}>*</span>
+                    </label>
+                    <input
+                      className="input"
+                      placeholder="e.g. Preliminary Round, Final Pitch..."
+                      value={newRoundName}
+                      onChange={e => setNewRoundName(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') handleAddRound(); }}
+                      autoFocus
+                    />
+                    <span style={{ fontSize: '0.75rem', color: 'var(--gray-600)' }}>Identifies this round on jury scoring cards.</span>
+                  </div>
+
+                  <div className="input-group">
+                    <label className="input-label">Weight</label>
+                    <input
+                      className="input"
+                      type="number"
+                      min="0.1"
+                      step="0.1"
+                      value={newWeight}
+                      onChange={e => setNewWeight(Number(e.target.value))}
+                      style={{ fontFamily: 'var(--mono)', fontWeight: 800 }}
+                    />
+                    <span style={{ fontSize: '0.75rem', color: 'var(--gray-600)' }}>Score multiplier (default 1.0)</span>
+                  </div>
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
-                <button className="btn btn-primary" onClick={handleAddRound}>Add Round</button>
-                <button className="btn btn-ghost" onClick={() => setAddingRound(false)}>Cancel</button>
+
+              <div
+                style={{
+                  padding: '1rem 1.5rem',
+                  background: 'var(--cream)',
+                  borderTop: '2px solid var(--black)',
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  gap: '0.75rem',
+                }}
+              >
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => setAddingRound(false)}
+                  style={{ border: '2px solid transparent' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleAddRound}
+                  style={{ border: '2px solid var(--black)', boxShadow: 'var(--shadow-sm)' }}
+                >
+                  <Plus size={15} />
+                  <span>Add Round</span>
+                </button>
               </div>
             </div>
           )}
@@ -2110,11 +2223,11 @@ export default function App() {
       setUserId(user.id);
       setUserEmail(user.email ?? null);
 
-      const r = await authService.getRole();
+      const r = await authService.getRole(user);
       setRole(r);
 
       if (r === 'organizer' || r === 'jury') {
-        const ctx = await authService.getEventContext();
+        const ctx = await authService.getEventContext(user);
         if (ctx) { setEventId(ctx.eventId); setSlug(ctx.slug); }
       }
     } catch (e) {
@@ -2126,12 +2239,20 @@ export default function App() {
 
   useEffect(() => {
     loadUserContext();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => loadUserContext());
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
+        setRole('public'); setUserId(null); setUserEmail(null);
+        setEventId(null); setSlug(null);
+        setAuthLoading(false);
+      } else if (session) {
+        loadUserContext();
+      }
+    });
     return () => subscription.unsubscribe();
   }, [loadUserContext]);
 
   const handleLogout = async () => {
-    await authService.signOut();
+    await authService.signOut('local');
     setRole('public'); setUserId(null); setUserEmail(null);
     setEventId(null); setSlug(null);
   };

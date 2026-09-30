@@ -10,8 +10,8 @@ export const authService = {
     return data;
   },
 
-  async signOut() {
-    await supabase.auth.signOut();
+  async signOut(scope: 'local' | 'global' = 'local') {
+    await supabase.auth.signOut({ scope });
   },
 
   async getSession() {
@@ -24,11 +24,16 @@ export const authService = {
     return user;
   },
 
-  async getRole(): Promise<UserRole> {
-    const { data: { user } } = await supabase.auth.getUser();
+  async getRole(currentUser?: { id: string; email?: string | null; app_metadata?: Record<string, unknown> } | null): Promise<UserRole> {
+    const user = currentUser ?? (await supabase.auth.getUser()).data.user;
     if (!user) return 'public';
 
-    // Check if super admin
+    // 1. Direct check for super admin email
+    if (user.email && user.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
+      return 'platform_admin';
+    }
+
+    // 2. Check if super admin in platform_admins
     const { data: adminRow } = await supabase
       .from('platform_admins')
       .select('user_id')
@@ -37,7 +42,7 @@ export const authService = {
 
     if (adminRow) return 'platform_admin';
 
-    // Check event member role
+    // 3. Check event member role
     const { data: memberRow } = await supabase
       .from('event_members')
       .select('role')
@@ -48,11 +53,17 @@ export const authService = {
     if (memberRow?.role === 'organizer') return 'organizer';
     if (memberRow?.role === 'jury') return 'jury';
 
+    // 4. Fallback check on app_metadata
+    const metaRole = (user as { app_metadata?: { role?: string } }).app_metadata?.role;
+    if (metaRole === 'admin') return 'platform_admin';
+    if (metaRole === 'organizer') return 'organizer';
+    if (metaRole === 'jury') return 'jury';
+
     return 'public';
   },
 
-  async getEventContext(): Promise<{ eventId: string; slug: string } | null> {
-    const { data: { user } } = await supabase.auth.getUser();
+  async getEventContext(currentUser?: { id: string } | null): Promise<{ eventId: string; slug: string } | null> {
+    const user = currentUser ?? (await supabase.auth.getUser()).data.user;
     if (!user) return null;
 
     const { data } = await supabase
